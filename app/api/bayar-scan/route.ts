@@ -1,4 +1,4 @@
-import pool, { ok, fail, periodeTertutup } from "@/lib/db";
+import pool, { tangkap, gagal, ok, fail, periodeTertutup } from "@/lib/db";
 import { requireRole, saldoAkhir, normalisasiUid, tanggalHariIni } from "@/lib/auth";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -20,8 +20,13 @@ export async function POST(req: Request) {
   if (!kodeQr) return fail("kode_qr wajib diisi");
   if (!uidRaw && !kodeRaw) return fail("Tempel kartu (uid_kartu) atau isi kode_bantu");
 
-  const conn = await pool.getConnection();
+  let conn: Awaited<ReturnType<typeof pool.getConnection>> | null = null;
   try {
+    try {
+      conn = await pool.getConnection();
+    } catch (e) {
+      return gagal("Database tidak terjangkau", e);
+    }
     // 1. Resolve pembayar
     let kodeBantu = kodeRaw;
     if (uidRaw) {
@@ -47,7 +52,8 @@ export async function POST(req: Request) {
     };
     if (t.status === "lunas") return fail("QR sudah lunas (double-scan ditolak)");
     if (t.status !== "menunggu") return fail("QR tidak berlaku: " + t.status);
-    if (new Date(t.kedaluwarsa).getTime() < Date.now()) {
+    const expMs = new Date(t.kedaluwarsa).getTime();
+    if (!Number.isFinite(expMs) || expMs < Date.now()) {
       await conn.execute("UPDATE tb_bayar_merchant SET status = 'kedaluwarsa' WHERE kode_qr = ?", [kodeQr]);
       return fail("QR kedaluwarsa, buat QR baru");
     }
@@ -84,19 +90,33 @@ export async function POST(req: Request) {
       );
       if (upd.affectedRows !== 1) throw new Error("QR sudah dipakai (race ditolak)");
       await conn.commit();
-      const sisa = await saldoAkhir(pool, kodeBantu);
-      return ok({ id_jurnal: idJurnal, sisa: sisa?.saldo ?? null, merchant: t.merchant });
+      let sisa: number | null = null;
+      try {
+        const s = await saldoAkhir(pool, kodeBantu);
+        sisa = s?.saldo ?? null;
+      } catch {
+        sisa = null;
+      }
+      return ok({ id_jurnal: idJurnal, sisa, merchant: t.merchant });
     } catch (e) {
       try {
         await conn.rollback();
       } catch {
         /* abaikan */
       }
-      return fail((e as Error).message, 500);
+      return tangkap("Gagal bayar", e);
     }
   } catch (e) {
-    return fail((e as Error).message, 500);
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* abaikan */
+      }
+    }
+    return tangkap("Gagal bayar", e);
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 }
+

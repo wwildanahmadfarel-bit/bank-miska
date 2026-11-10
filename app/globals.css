@@ -36,4 +36,43 @@ body {
   main {
     padding: 0 !important;
   }
+  /* Cetak nota saja dalam 1 halaman kertas 57mm (tanpa halaman kosong). */
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  /* Bungkus popup dinetralkan agar tidak menambah halaman. */
+  .nota-overlay {
+    position: static !important;
+    background: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .print-nota,
+  .print-nota * {
+    visibility: visible;
+  }
+  .print-nota {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 57mm !important;
+    margin: 0 !important;
+    padding: 2mm !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-nota * {
+    color: #000 !important;
+  }
+  @page {
+    size: 57mm auto;
+    margin: 0;
+  }
 }

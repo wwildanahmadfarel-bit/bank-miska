@@ -7,7 +7,7 @@ import { rupiah } from "@/lib/format";
 import { useToast } from "../components/Toast";
 
 type Row = {
-  tanggal: string; no_bukti: string; keterangan: string; tipe: string;
+  tanggal: string; waktu: string; no_bukti: string; keterangan: string; tipe: string;
   kode_akun: string; debet: number; kredit: number; saldo: number;
 };
 
@@ -80,7 +80,7 @@ export default function RiwayatPage() {
       {!isNasabah && (
         <Card className="mb-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
-            <Field label="Kode Pembantu">
+            <Field label="Kode nasabah" hint="Hxxx tabungan / Pxxx pinjaman">
               <input className={inputCls} value={kode} onChange={(e) => setKode(e.target.value.toUpperCase())} placeholder="H2478" />
             </Field>
             <Field label="Dari">
@@ -90,7 +90,12 @@ export default function RiwayatPage() {
               <input type="date" className={inputCls} value={sampai} onChange={(e) => setSampai(e.target.value)} />
             </Field>
             <div className="flex flex-wrap items-end gap-2">
-              <Btn onClick={() => muat()}>Tampilkan</Btn>
+              <Btn onClick={() => muat()} disabled={loading}>
+                {loading ? "Memuat…" : "Tampilkan"}
+              </Btn>
+              <Btn variant="secondary" onClick={() => muat()} disabled={loading}>
+                ⟳ Refresh
+              </Btn>
               <ExportButtons
                 href={`/api/ekspor?laporan=riwayat&kode=${encodeURIComponent(kode)}&mulai=${encodeURIComponent(mulai)}&sampai=${encodeURIComponent(sampai)}`}
                 disabled={loading || rows.length === 0}
@@ -119,7 +124,7 @@ export default function RiwayatPage() {
       {loading ? (
         <Skeleton />
       ) : !info ? (
-        <EmptyState text={isNasabah ? "Memuat..." : "Isi kode lalu Tampilkan."} />
+        <EmptyState text={isNasabah ? "Memuat..." : "Isi kode nasabah lalu Tampilkan — mis. H2478."} />
       ) : (
         <>
           <p className="mb-3 text-sm font-semibold text-ink">{info}</p>
@@ -134,7 +139,10 @@ export default function RiwayatPage() {
             <TableShell head={["Tanggal", "Bukti", "Keterangan", "Debet", "Kredit", "Saldo"]}>
               {rows.map((r, i) => (
                 <tr key={i}>
-                  <td className="px-3 py-2.5">{String(r.tanggal).slice(0, 10)}</td>
+                  <td className="px-3 py-2.5">
+                    {String(r.tanggal).slice(0, 10)}
+                    <div className="text-xs text-muted">{r.waktu || "-"}</div>
+                  </td>
                   <td className="px-3 py-2.5">{r.no_bukti}</td>
                   <td className="px-3 py-2.5">
                     {r.keterangan}

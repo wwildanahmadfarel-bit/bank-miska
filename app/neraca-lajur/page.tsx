@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { PageHeader, Card, Btn, inputCls, EmptyState, Skeleton, TableShell } from "../components/ui";
+import { PageHeader, Card, Btn, Field, inputCls, Badge, EmptyState, Skeleton, TableShell } from "../components/ui";
+import { rupiah } from "@/lib/format";
 import ExportButtons from "../components/ExportButtons";
 import RoleGuard from "../components/RoleGuard";
 import { useToast } from "../components/Toast";
@@ -39,15 +40,28 @@ function NeracaLajurPageInner() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader title="Neraca Lajur" sub="Neraca saldo per bulan." />
+      <PageHeader title="Neraca Lajur" sub="Cek keseimbangan debet = kredit per bulan." />
       <Card>
-        <div className="mb-4 flex max-w-xl flex-wrap gap-2">
-          <input className={inputCls} placeholder="2019-12" value={bulan} onChange={(e) => setBulan(e.target.value)} />
-          <Btn onClick={muat}>Tampilkan</Btn>
-          <ExportButtons
-            href={`/api/ekspor?laporan=neraca-lajur&bulan=${encodeURIComponent(bulan)}`}
-            disabled={loading || rows.length === 0}
-          />
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+          <Field label="Bulan">
+            <input type="month" className={inputCls} value={bulan} onChange={(e) => setBulan(e.target.value)} />
+          </Field>
+          <div className="flex items-end">
+            <Btn onClick={muat} disabled={loading}>
+              {loading ? "Memuat…" : "Tampilkan"}
+            </Btn>
+          </div>
+          <div className="flex items-end">
+            <Btn variant="secondary" onClick={muat} disabled={loading}>
+              ⟳ Refresh
+            </Btn>
+          </div>
+          <div className="flex items-end">
+            <ExportButtons
+              href={`/api/ekspor?laporan=neraca-lajur&bulan=${encodeURIComponent(bulan)}`}
+              disabled={loading || rows.length === 0}
+            />
+          </div>
         </div>
         <p className="mb-4 text-xs text-muted">
           Periode yang sudah ditutup bersifat arsip (read-only) — angka per bulan murni dan tidak berubah oleh
@@ -56,7 +70,9 @@ function NeracaLajurPageInner() {
         {loading ? (
           <Skeleton />
         ) : !searched ? (
-          <EmptyState text="Isi bulan lalu Tampilkan." />
+          <EmptyState text="Pilih bulan lalu Tampilkan." />
+        ) : rows.length === 0 ? (
+          <EmptyState text="Tidak ada data bulan ini — coba bulan lain atau tekan Refresh." />
         ) : (
           <>
             <TableShell head={["Kode", "Nama", "Pos", "NS Debet", "NS Kredit"]}>
@@ -66,14 +82,16 @@ function NeracaLajurPageInner() {
                     <strong>{r.kode_akun}</strong>
                   </td>
                   <td className="px-3 py-2.5">{r.nama}</td>
-                  <td className="px-3 py-2.5">{r.pos_saldo}</td>
-                  <td className="num px-3 py-2.5">{Number(r.ns_debet).toLocaleString("id-ID")}</td>
-                  <td className="num px-3 py-2.5">{Number(r.ns_kredit).toLocaleString("id-ID")}</td>
+                  <td className="px-3 py-2.5">
+                    <Badge value={r.pos_saldo} />
+                  </td>
+                  <td className="num px-3 py-2.5">{Number(r.ns_debet) > 0 ? rupiah(r.ns_debet) : "-"}</td>
+                  <td className="num px-3 py-2.5">{Number(r.ns_kredit) > 0 ? rupiah(r.ns_kredit) : "-"}</td>
                 </tr>
               ))}
             </TableShell>
             <div className={`mt-3 rounded-xl px-4 py-3 text-sm font-semibold ${balance ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
-              TOTAL Debet {tD.toLocaleString("id-ID")} = Kredit {tK.toLocaleString("id-ID")}
+              TOTAL Debet {rupiah(tD)} = Kredit {rupiah(tK)}
               {balance ? " — BALANCE ✓" : " — TIDAK BALANCE!"}
             </div>
           </>

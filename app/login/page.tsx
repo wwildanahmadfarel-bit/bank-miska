@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -39,7 +40,7 @@ function LoginForm() {
 
   return (
     <div className="mx-auto max-w-md">
-      <PageHeader title="Masuk" sub="Teller siswa, admin guru, atau nasabah. Demo: admin/admin123, teller/teller123, siswa/siswa123." />
+      <PageHeader title="Masuk" sub="Masuk dengan username dan password akun Bank Miska Anda." />
       <Card>
         <form onSubmit={masuk} className="space-y-3">
           <Field label="Username">
@@ -62,6 +63,16 @@ function LoginForm() {
           <Btn type="submit" disabled={busy}>
             {busy ? "Memeriksa..." : "Masuk"}
           </Btn>
+          <p className="text-sm text-muted">
+            Sudah punya rekening tapi belum punya akun?{" "}
+            <Link href="/register" className="font-semibold text-brand-600 hover:underline">
+              Daftar di sini
+            </Link>{" "}
+            ·{" "}
+            <Link href="/bantuan" className="font-semibold text-brand-600 hover:underline">
+              Bantuan
+            </Link>
+          </p>
         </form>
       </Card>
     </div>

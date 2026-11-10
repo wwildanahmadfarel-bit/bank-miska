@@ -1,4 +1,4 @@
-import pool, { ok, fail } from "@/lib/db";
+import pool, { tangkap, gagal, ok, fail } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -19,8 +19,13 @@ export async function POST(req: Request) {
   const bulan = String(input.bulan ?? "").trim();
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(bulan)) return fail("bulan harus YYYY-MM (01-12)");
 
-  const conn = await pool.getConnection();
+  let conn: Awaited<ReturnType<typeof pool.getConnection>> | null = null;
   try {
+    try {
+      conn = await pool.getConnection();
+    } catch (e) {
+      return gagal("Database tidak terjangkau", e);
+    }
     await conn.beginTransaction();
 
     const [trows] = await conn.execute<RowDataPacket[]>("SELECT bulan FROM tb_periode_tutup WHERE bulan = ?", [
@@ -30,7 +35,7 @@ export async function POST(req: Request) {
 
     // Hanya periode tutup terbaru yang boleh dibuka (jaga urutan kronologis).
     const [mrows] = await conn.execute<RowDataPacket[]>("SELECT MAX(bulan) AS maks FROM tb_periode_tutup");
-    const maks = (mrows[0] as { maks: string | null }).maks;
+    const maks = (mrows[0] as { maks: string | null } | undefined)?.maks ?? null;
     if (maks && maks !== bulan)
       throw new Error(`Buka dari periode tutup terbaru dulu (${maks}), bukan ${bulan}`);
 
@@ -44,9 +49,16 @@ export async function POST(req: Request) {
     await conn.commit();
     return ok({ bulan, status: "buka", penutup_dihapus: dj.affectedRows });
   } catch (e) {
-    await conn.rollback();
-    return fail((e as Error).message, 500);
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* abaikan */
+      }
+    }
+    return tangkap("Gagal buka periode", e);
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 }
+

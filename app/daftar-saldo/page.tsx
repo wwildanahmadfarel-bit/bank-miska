@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PageHeader, Card, EmptyState, Skeleton, TableShell } from "../components/ui";
+import { PageHeader, Card, Btn, EmptyState, Skeleton, TableShell } from "../components/ui";
 import ExportButtons from "../components/ExportButtons";
 import { rupiah } from "@/lib/format";
 import { useToast } from "../components/Toast";
@@ -58,34 +58,36 @@ export default function DaftarSaldoPage() {
     muat(t);
   }
 
-  const tab = (active: boolean) =>
-    `rounded-lg px-4 py-2 text-sm font-semibold transition ${active ? "bg-brand-500 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`;
-
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Daftar Saldo" sub="Total per rekening pengganti SUM Excel." />
+      <PageHeader title="Daftar Saldo" sub="Saldo terkini per nasabah — Tabungan (H) dan Piutang (P)." />
       <Card>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-2">
-            <button className={tab(tipe === "TABUNGAN")} onClick={() => setT("TABUNGAN")}>
+            <Btn variant={tipe === "TABUNGAN" ? "primary" : "secondary"} onClick={() => setT("TABUNGAN")}>
               Tabungan (H)
-            </button>
-            <button className={tab(tipe === "PIUTANG")} onClick={() => setT("PIUTANG")}>
+            </Btn>
+            <Btn variant={tipe === "PIUTANG" ? "primary" : "secondary"} onClick={() => setT("PIUTANG")}>
               Piutang (P)
-            </button>
+            </Btn>
           </div>
-          <ExportButtons
-            href={`/api/ekspor?laporan=daftar-saldo&tipe=${encodeURIComponent(tipe)}`}
-            disabled={loading || rows.length === 0}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn variant="secondary" onClick={() => muat(tipe)} disabled={loading}>
+              {loading ? "Memuat…" : "⟳ Refresh"}
+            </Btn>
+            <ExportButtons
+              href={`/api/ekspor?laporan=daftar-saldo&tipe=${encodeURIComponent(tipe)}`}
+              disabled={loading || rows.length === 0}
+            />
+          </div>
         </div>
         <p className="mb-4 text-xs text-muted">
-          Menampilkan posisi kini, bukan snapshot per periode — cetak ulang bulan tutup akan memakai angka terbaru.
+          Angka posisi terkini — untuk arsip bulan yang sudah ditutup, unduh dari halaman laporan per periode.
         </p>
         {loading ? (
           <Skeleton />
         ) : rows.length === 0 ? (
-          <EmptyState />
+          <EmptyState text="Belum ada data pada tipe ini — coba tipe lain atau tekan Refresh." />
         ) : (
           <>
             <TableShell head={["Kode", "Nama", "No Rek", "Saldo Akhir"]}>
@@ -96,7 +98,7 @@ export default function DaftarSaldoPage() {
                   </td>
                   <td className="px-3 py-2.5">{r.nama}</td>
                   <td className="px-3 py-2.5">{r.no_rek ?? "-"}</td>
-                  <td className="num px-3 py-2.5">{Number(r.saldo_akhir).toLocaleString("id-ID")}</td>
+                  <td className="num px-3 py-2.5">{rupiah(r.saldo_akhir)}</td>
                 </tr>
               ))}
             </TableShell>

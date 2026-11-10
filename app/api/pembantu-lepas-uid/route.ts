@@ -1,4 +1,4 @@
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import type { ResultSetHeader } from "mysql2/promise";
 
@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     if (r.affectedRows === 0) return fail("Kode tidak dikenal atau sudah tanpa kartu", 404);
     return ok({ kode });
   } catch (e) {
-    return fail("Gagal lepas kartu: " + (e as Error).message, 500);
+    return gagal("Gagal lepas kartu: ", e);
   }
 }
+

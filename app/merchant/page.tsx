@@ -143,7 +143,7 @@ function MerchantPageInner() {
         <Card>
           <h3 className="font-semibold text-ink">QR Transaksi</h3>
           {!qr ? (
-            <p className="mt-3 text-sm text-muted">Belum ada QR. Buat dari form di samping.</p>
+            <p className="mt-3 text-sm text-muted">Belum ada QR. Isi merchant + nominal lalu klik Buat QR.</p>
           ) : (
             <div className="mt-3 flex flex-col items-center gap-2">
               <QRCodeSVG value={qr.payload} size={220} />
@@ -151,7 +151,11 @@ function MerchantPageInner() {
               <div className="text-sm">
                 {rupiah(qr.nominal)} • status: <strong>{status || "menunggu"}</strong>
               </div>
-              <div className="break-all text-center text-xs text-muted">{qr.payload}</div>
+              <p className="text-xs text-muted">Berlaku 5 menit — status diperbarui otomatis tiap 2 detik.</p>
+              <details className="w-full text-center">
+                <summary className="cursor-pointer text-xs font-semibold text-brand-600">Detail teknis QR</summary>
+                <div className="mt-1 break-all text-center text-xs text-muted">{qr.payload}</div>
+              </details>
             </div>
           )}
         </Card>

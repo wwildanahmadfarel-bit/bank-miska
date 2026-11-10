@@ -1,0 +1,9 @@
+# Jangan pernah upload kredensial lokal ke bundle deployment Vercel.
+.env*
+!.env.example
+
+# Artefak lokal yang tidak perlu ikut deploy.
+.next
+node_modules
+coverage
+*.log

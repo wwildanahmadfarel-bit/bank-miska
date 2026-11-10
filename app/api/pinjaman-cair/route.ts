@@ -1,4 +1,4 @@
-import pool, { ok, fail, periodeTertutup } from "@/lib/db";
+import pool, { tangkap, gagal, ok, fail, periodeTertutup } from "@/lib/db";
 import { batas, batasNominal, requireRole } from "@/lib/auth";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -33,8 +33,13 @@ export async function POST(req: Request) {
   const total = plafon + (plafon * bunga) / 100;
   const perAngsuran = Math.floor((total / tenor) * 100) / 100;
 
-  const conn = await pool.getConnection();
+  let conn: Awaited<ReturnType<typeof pool.getConnection>> | null = null;
   try {
+    try {
+      conn = await pool.getConnection();
+    } catch (e) {
+      return gagal("Database tidak terjangkau", e);
+    }
     if (await periodeTertutup(conn, tanggal)) return fail("Periode sudah ditutup");
     const [cek] = await conn.execute<RowDataPacket[]>("SELECT status FROM tb_pembantu WHERE kode = ? LIMIT 1", [kode]);
     if (cek.length === 0) return fail("Kode pembantu tidak dikenal: " + kode, 404);
@@ -44,8 +49,8 @@ export async function POST(req: Request) {
     const [kasRows] = await conn.execute<RowDataPacket[]>(
       "SELECT COALESCE(SUM(debet - kredit), 0) AS kas FROM tb_jurnal_detail WHERE kode_akun = '1-110'"
     );
-    if (Number((kasRows[0] as { kas: number }).kas) < plafon)
-      return fail("Kas tidak cukup untuk pencairan " + plafon);
+    const kasSaldo = Number((kasRows[0] as { kas: number } | undefined)?.kas ?? 0);
+    if (kasSaldo < plafon) return fail("Kas tidak cukup untuk pencairan " + plafon);
     await conn.beginTransaction();
 
     const [ph] = await conn.execute<ResultSetHeader>(
@@ -95,9 +100,16 @@ export async function POST(req: Request) {
     await conn.commit();
     return ok({ id_piutang: idPiutang, id_jurnal: idJurnal, total });
   } catch (e) {
-    await conn.rollback();
-    return fail((e as Error).message, 500);
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* abaikan */
+      }
+    }
+    return tangkap("Gagal cairkan pinjaman", e);
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 }
+

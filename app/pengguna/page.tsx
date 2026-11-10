@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Btn, Field, inputCls, Badge, EmptyState, Skeleton, TableShell } from "../components/ui";
+import ConfirmButton from "../components/ConfirmButton";
 import RoleGuard from "../components/RoleGuard";
 import { useToast } from "../components/Toast";
 
@@ -14,8 +15,26 @@ function PenggunaPageInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ username: "", password: "", role: "nasabah", kode_bantu: "" });
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [pwBaru, setPwBaru] = useState("");
+  const [pwLihat, setPwLihat] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [tautTarget, setTautTarget] = useState<User | null>(null);
+  const [tautKode, setTautKode] = useState("");
+  const [tautBusy, setTautBusy] = useState(false);
+  const [cari, setCari] = useState("");
 
   const isAdmin = roleSaya === "admin";
+
+  const katakunci = cari.trim().toLowerCase();
+  const tampil = katakunci
+    ? rows.filter((u) =>
+        [u.username, u.nama_nasabah ?? "", u.kode_bantu ?? "", u.role, `#${u.id}`]
+          .join(" ")
+          .toLowerCase()
+          .includes(katakunci)
+      )
+    : rows;
 
   async function muat() {
     setLoading(true);
@@ -64,8 +83,7 @@ function PenggunaPageInner() {
     }
   }
 
-  async function patch(id: number, body: Record<string, unknown>, tanya: string) {
-    if (!confirm(tanya)) return;
+  async function patch(id: number, body: Record<string, unknown>) {
     try {
       const r = await fetch("/api/pengguna", {
         method: "PATCH",
@@ -82,19 +100,57 @@ function PenggunaPageInner() {
   }
 
   function resetPw(u: User) {
-    const pw = prompt(`Password baru untuk ${u.username} (min 6 karakter):`);
-    if (pw === null) return;
-    patch(u.id, { password: pw }, `Reset password ${u.username}?`);
+    setResetTarget(u);
+    setPwBaru("");
+    setPwLihat(false);
+  }
+
+  function tutupReset() {
+    setResetTarget(null);
+    setPwBaru("");
+    setPwLihat(false);
+  }
+
+  async function kirimResetPw() {
+    if (!resetTarget) return;
+    if (pwBaru.length < 6) return toast("Password minimal 6 karakter.", true);
+    setResetting(true);
+    try {
+      const r = await fetch("/api/pengguna", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: resetTarget.id, password: pwBaru }),
+      });
+      const data = await r.json();
+      if (!data.sukses) return toast(data.pesan, true);
+      toast(`Password ${resetTarget.username} direset.`);
+      tutupReset();
+      muat();
+    } catch (e) {
+      toast("Gagal: " + (e as Error).message, true);
+    } finally {
+      setResetting(false);
+    }
   }
 
   function ubahTaut(u: User) {
-    const k = prompt(`Tautkan ${u.username} ke kode (Hxxx/Pxxx, kosongkan untuk lepas):`, u.kode_bantu || "");
-    if (k === null) return;
-    patch(u.id, { kode_bantu: k }, `Ubah tautan ${u.username} ke ${k || "-"}?`);
+    setTautTarget(u);
+    setTautKode(u.kode_bantu || "");
+  }
+
+  async function kirimTaut() {
+    if (!tautTarget) return;
+    setTautBusy(true);
+    try {
+      await patch(tautTarget.id, { kode_bantu: tautKode.trim().toUpperCase() });
+      setTautTarget(null);
+      setTautKode("");
+    } finally {
+      setTautBusy(false);
+    }
   }
 
   async function hapus(u: User) {
-    if (!confirm(`Hapus permanen ${u.username}? (lebih aman: Nonaktifkan)`)) return;
     try {
       const r = await fetch("/api/pengguna", {
         method: "DELETE",
@@ -154,11 +210,31 @@ function PenggunaPageInner() {
         <Card>
           {loading ? (
             <Skeleton />
-          ) : rows.length === 0 ? (
-            <EmptyState />
           ) : (
-            <TableShell head={["User", "Role", "Tautan", "Aktif", "Aksi"]}>
-              {rows.map((u) => (
+            <>
+              <div className="mb-3 flex gap-2">
+                <input
+                  className={inputCls}
+                  value={cari}
+                  onChange={(e) => setCari(e.target.value)}
+                  placeholder="🔍 Cari username / nama / kode (Hxxx/Pxxx)..."
+                />
+                {cari && (
+                  <Btn variant="secondary" onClick={() => setCari("")}>
+                    Bersihkan
+                  </Btn>
+                )}
+              </div>
+              {katakunci && (
+                <p className="mb-2 text-xs text-muted">
+                  Menampilkan {tampil.length} dari {rows.length} pengguna.
+                </p>
+              )}
+              {tampil.length === 0 ? (
+                <EmptyState text={katakunci ? `Tidak ketemu "${cari.trim()}".` : undefined} />
+              ) : (
+                <TableShell head={["User", "Role", "Tautan", "Aktif", "Aksi"]}>
+                  {tampil.map((u) => (
                 <tr key={u.id}>
                   <td className="px-3 py-2.5">
                     <strong>{u.username}</strong>
@@ -176,9 +252,9 @@ function PenggunaPageInner() {
                       "-"
                     )}
                     {isAdmin && (
-                      <button onClick={() => ubahTaut(u)} className="ml-2 rounded-md bg-slate-100 px-2 py-0.5 font-bold hover:bg-slate-200">
+                      <Btn size="sm" variant="secondary" onClick={() => ubahTaut(u)}>
                         Ubah
-                      </button>
+                      </Btn>
                     )}
                   </td>
                   <td className="px-3 py-2.5">
@@ -191,33 +267,118 @@ function PenggunaPageInner() {
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-xs">
-                    <div className="flex flex-wrap gap-1">
-                      <button onClick={() => resetPw(u)} className="rounded-md bg-slate-100 px-2 py-0.5 font-bold hover:bg-slate-200">
-                        Reset PW
-                      </button>
+                    <div className="grid min-w-[228px] grid-cols-3 gap-1.5">
                       {isAdmin && (
-                        <button
-                          onClick={() =>
-                            patch(u.id, { aktif: u.aktif ? 0 : 1 }, `${u.aktif ? "Nonaktifkan" : "Aktifkan"} ${u.username}?`)
-                          }
-                          className="rounded-md bg-amber-100 px-2 py-0.5 font-bold text-amber-800 hover:bg-amber-200"
-                        >
-                          {u.aktif ? "Nonaktif" : "Aktifkan"}
-                        </button>
+                        <Btn size="sm" block variant="secondary" onClick={() => resetPw(u)}>
+                          Reset PW
+                        </Btn>
                       )}
                       {isAdmin && (
-                        <button onClick={() => hapus(u)} className="rounded-md bg-red-100 px-2 py-0.5 font-bold text-red-700 hover:bg-red-200">
+                        <ConfirmButton
+                          title={`${u.aktif ? "Nonaktifkan" : "Aktifkan"} ${u.username}?`}
+                          body={u.aktif ? "User tidak bisa masuk sampai diaktifkan lagi." : "User bisa masuk kembali."}
+                          confirmLabel={u.aktif ? "Ya, nonaktifkan" : "Ya, aktifkan"}
+                          variant="primary"
+                          size="sm"
+                          block
+                          onConfirm={() => patch(u.id, { aktif: u.aktif ? 0 : 1 })}
+                        >
+                          {u.aktif ? "Nonaktif" : "Aktifkan"}
+                        </ConfirmButton>
+                      )}
+                      {isAdmin && (
+                        <ConfirmButton
+                          title={`Hapus permanen ${u.username}?`}
+                          body="Lebih aman menonaktifkan. Penghapusan tidak bisa dibatalkan."
+                          confirmLabel="Ya, hapus"
+                          size="sm"
+                          block
+                          onConfirm={() => hapus(u)}
+                        >
                           Hapus
-                        </button>
+                        </ConfirmButton>
                       )}
                     </div>
                   </td>
                 </tr>
-              ))}
-            </TableShell>
+                  ))}
+                </TableShell>
+              )}
+            </>
           )}
         </Card>
       </div>
+      {tautTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setTautTarget(null)}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-ink">Tautkan {tautTarget.username}</h3>
+            <p className="mt-1 text-sm text-muted">Ke kode rekening Hxxx/Pxxx — kosongkan untuk melepas tautan.</p>
+            <div className="mt-4">
+              <Field label="Kode rekening">
+                <input
+                  className={inputCls}
+                  value={tautKode}
+                  onChange={(e) => setTautKode(e.target.value.toUpperCase())}
+                  placeholder="H2412"
+                  autoFocus
+                />
+              </Field>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Btn variant="secondary" onClick={() => setTautTarget(null)}>
+                Batal
+              </Btn>
+              <Btn onClick={kirimTaut} disabled={tautBusy}>
+                {tautBusy ? "Menyimpan..." : "Simpan"}
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={tutupReset}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-ink">Reset password {resetTarget.username}</h3>
+            <p className="mt-1 text-sm text-muted">
+              Role: {resetTarget.role}. Password lama langsung tidak berlaku setelah direset.
+            </p>
+            <div className="mt-4">
+              <Field label="Password baru (min 6)">
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls}
+                    type={pwLihat ? "text" : "password"}
+                    value={pwBaru}
+                    onChange={(e) => setPwBaru(e.target.value)}
+                    placeholder="••••••"
+                    autoFocus
+                  />
+                  <Btn variant="secondary" onClick={() => setPwLihat(!pwLihat)}>
+                    {pwLihat ? "🙈" : "👁️"}
+                  </Btn>
+                </div>
+              </Field>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Btn variant="secondary" onClick={tutupReset}>
+                Batal
+              </Btn>
+              <ConfirmButton
+                title={`Reset password ${resetTarget.username}?`}
+                body="Password lama langsung tidak berlaku. Lanjutkan?"
+                confirmLabel="Ya, reset"
+                onConfirm={kirimResetPw}
+                disabled={pwBaru.length < 6 || resetting}
+              >
+                {resetting ? "Memproses..." : "Reset"}
+              </ConfirmButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

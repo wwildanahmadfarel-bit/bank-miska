@@ -1,4 +1,4 @@
-import pool, { ok, fail, periodeTertutup } from "@/lib/db";
+import pool, { tangkap, gagal, ok, fail, periodeTertutup } from "@/lib/db";
 import { batasNominal, requireRole } from "@/lib/auth";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -24,8 +24,13 @@ export async function POST(req: Request) {
   if (errBayar) return fail(errBayar);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(tanggal)) return fail("Tanggal harus YYYY-MM-DD");
 
-  const conn = await pool.getConnection();
+  let conn: Awaited<ReturnType<typeof pool.getConnection>> | null = null;
   try {
+    try {
+      conn = await pool.getConnection();
+    } catch (e) {
+      return gagal("Database tidak terjangkau", e);
+    }
     if (await periodeTertutup(conn, tanggal)) return fail("Periode sudah ditutup");
     await conn.beginTransaction();
 
@@ -91,9 +96,16 @@ export async function POST(req: Request) {
     await conn.commit();
     return ok({ id_jurnal: idJurnal, pokok, bunga, sisa: sisaBaru, status: statusBaru });
   } catch (e) {
-    await conn.rollback();
-    return fail((e as Error).message, 500);
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* abaikan */
+      }
+    }
+    return tangkap("Gagal bayar angsuran", e);
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 }
+

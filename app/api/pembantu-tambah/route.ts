@@ -1,4 +1,4 @@
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { batas, normalisasiUid, requireRole, validasiUid } from "@/lib/auth";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
     }
     return ok({ kode });
   } catch (e) {
-    return fail("Gagal simpan: " + (e as Error).message, 500);
+    return gagal("Gagal simpan: ", e);
   }
 }
+

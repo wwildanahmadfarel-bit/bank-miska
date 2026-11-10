@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
+import { batasBulan } from "@/lib/laporan";
 import type { RowDataPacket } from "mysql2/promise";
 
 // GET /api/neraca-lajur?bulan=2019-12 — teller/admin only
@@ -8,7 +9,9 @@ export async function GET(req: NextRequest) {
   const gate = await requireRole(req, ["teller", "admin"], fail);
   if (gate instanceof Response) return gate;
   const bulan = (req.nextUrl.searchParams.get("bulan") ?? "").trim();
-  if (!/^\d{4}-\d{2}$/.test(bulan)) return fail("bulan harus YYYY-MM");
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(bulan)) return fail("bulan harus YYYY-MM (01-12)");
+  // Cutoff hari terakhir benar — jangan bulan+"-31" (invalid untuk bulan pendek).
+  const { sampai } = batasBulan(bulan);
 
   try {
     const [rows] = await pool.execute<RowDataPacket[]>(
@@ -18,7 +21,7 @@ export async function GET(req: NextRequest) {
          tb_jurnal_detail d JOIN tb_jurnal j ON j.id = d.id_jurnal AND j.tanggal <= ?
        ) ON d.kode_akun = c.kode_akun
        GROUP BY c.kode_akun ORDER BY c.kode_akun ASC`,
-      [bulan + "-31"]
+      [sampai]
     );
 
     let tDebet = 0;
@@ -52,6 +55,7 @@ export async function GET(req: NextRequest) {
       rows: out,
     });
   } catch (e) {
-    return fail("Gagal baca neraca lajur: " + (e as Error).message, 500);
+    return gagal("Gagal baca neraca lajur: ", e);
   }
 }
+

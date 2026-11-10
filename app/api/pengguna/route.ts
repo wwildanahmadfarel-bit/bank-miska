@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import bcrypt from "bcryptjs";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { getSessionUser, requireRole } from "@/lib/auth";
+import { hashPassword } from "@/lib/password";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
 const ROLES = ["teller", "admin", "nasabah"] as const;
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     );
     return ok({ data: rows, role_saya: user.role });
   } catch (e) {
-    return fail("Gagal baca pengguna: " + (e as Error).message, 500);
+    return gagal("Gagal baca pengguna: ", e);
   }
 }
 
@@ -56,14 +56,13 @@ export async function POST(req: NextRequest) {
       const [cek] = await pool.execute<RowDataPacket[]>("SELECT 1 FROM tb_pembantu WHERE kode = ? LIMIT 1", [kode]);
       if (cek.length === 0) return fail("Kode pembantu tidak dikenal: " + kode, 404);
     }
-    const hash = await bcrypt.hash(password, 10);
     const [r] = await pool.execute<ResultSetHeader>(
       "INSERT INTO tb_user (username, password_hash, role, kode_bantu) VALUES (?,?,?,?)",
-      [username, hash, role, kode]
+      [username, await hashPassword(password), role, kode]
     );
     return ok({ id: r.insertId, username });
   } catch (e) {
-    const msg = (e as Error).message;
+    const msg = String((e as { message?: unknown })?.message ?? e ?? "");
     if (msg.includes("Duplicate")) return fail("Username sudah dipakai", 409);
     return fail("Gagal simpan: " + msg, 500);
   }
@@ -100,7 +99,7 @@ export async function PATCH(req: NextRequest) {
       if (pw !== "" && pw.length < 6) return fail("Password minimal 6 karakter");
       if (pw !== "") {
         sets.push("password_hash = ?");
-        params.push(await bcrypt.hash(pw, 10));
+        params.push(await hashPassword(pw));
       }
     }
     if (input.role !== undefined) {
@@ -134,7 +133,7 @@ export async function PATCH(req: NextRequest) {
     await pool.execute(`UPDATE tb_user SET ${sets.join(", ")} WHERE id = ?`, params);
     return ok({ id });
   } catch (e) {
-    return fail("Gagal ubah: " + (e as Error).message, 500);
+    return gagal("Gagal ubah: ", e);
   }
 }
 
@@ -161,6 +160,7 @@ export async function DELETE(req: NextRequest) {
     await pool.execute("DELETE FROM tb_user WHERE id = ?", [id]);
     return ok({ id });
   } catch (e) {
-    return fail("Gagal hapus: " + (e as Error).message, 500);
+    return gagal("Gagal hapus: ", e);
   }
 }
+

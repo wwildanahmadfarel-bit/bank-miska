@@ -40,7 +40,27 @@ function PenutupPageInner() {
   }
 
   useEffect(() => {
-    muat();
+    let aktif = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/periode");
+        const data = await r.json();
+        if (!aktif) return;
+        if (!data.sukses) {
+          toast(data.pesan, true);
+          return;
+        }
+        setRows(data.periode);
+        setTerbaru(data.tutup_terbaru ?? null);
+      } catch (e) {
+        if (aktif) toast("Gagal: " + (e as Error).message, true);
+      } finally {
+        if (aktif) setLoading(false);
+      }
+    })();
+    return () => {
+      aktif = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

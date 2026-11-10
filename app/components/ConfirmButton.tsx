@@ -11,6 +11,8 @@ export default function ConfirmButton({
   variant = "danger" as const,
   onConfirm,
   disabled = false,
+  size = "md",
+  block = false,
 }: {
   children: ReactNode;
   title?: string;
@@ -19,6 +21,8 @@ export default function ConfirmButton({
   variant?: "danger" | "primary";
   onConfirm: () => void | Promise<void>;
   disabled?: boolean;
+  size?: "md" | "sm";
+  block?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -35,7 +39,7 @@ export default function ConfirmButton({
 
   return (
     <>
-      <Btn variant={variant} onClick={() => setOpen(true)} disabled={disabled}>
+      <Btn variant={variant} size={size} block={block} onClick={() => setOpen(true)} disabled={disabled}>
         {children}
       </Btn>
       {open && (

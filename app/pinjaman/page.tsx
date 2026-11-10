@@ -75,16 +75,16 @@ function PinjamanPageInner() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title="Pencairan Pinjaman" sub="Db 1-130-Pxxx plafon lawan Kr 1-110 Kas + generate angsuran." />
+      <PageHeader title="Pencairan Pinjaman" sub="Cairkan ke rekening Pxxx — jadwal angsuran dibuat otomatis." />
       <Card>
         <div className="space-y-3">
           <Field label="Tanggal Cair">
             <input type="date" className={inputCls} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
           </Field>
-          <Field label="Kode Pembantu Piutang (Pxxx)">
-            <input className={inputCls} value={kode} onChange={(e) => setKode(e.target.value)} placeholder="P124" />
+          <Field label="Kode nasabah pinjaman" hint="Awalan P, mis. P124">
+            <input className={inputCls} value={kode} onChange={(e) => setKode(e.target.value.toUpperCase())} placeholder="P124" />
           </Field>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field label="Plafon (Rp)">
               <input className={inputCls} type="number" min={1} value={plafon} onChange={(e) => setPlafon(e.target.value)} />
             </Field>
@@ -96,7 +96,10 @@ function PinjamanPageInner() {
             </Field>
           </div>
           <p className="text-sm text-muted">
-            Estimasi total: <strong className="num text-ink">{rupiah(estimasi)}</strong>
+            Estimasi total kembali: <strong className="num text-ink">{rupiah(estimasi)}</strong>
+            {parseInt(tenor, 10) > 0 && (
+              <> • cicilan per bulan <strong className="num text-ink">{rupiah(estimasi / (parseInt(tenor, 10) || 1))}</strong></>
+            )}
           </p>
           <Btn onClick={cairkan} disabled={busy}>
             {busy ? "Memproses..." : "Cairkan Pinjaman"}
@@ -104,25 +107,30 @@ function PinjamanPageInner() {
         </div>
       </Card>
       <Card className="mt-5">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h3 className="font-semibold text-ink">Daftar Piutang</h3>
-          <select
-            className={`${inputCls} w-40`}
-            value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value);
-              muat(e.target.value);
-            }}
-          >
-            <option value="berjalan">Berjalan</option>
-            <option value="lunas">Lunas</option>
-            <option value="semua">Semua</option>
-          </select>
+          <div className="flex gap-2">
+            <select
+              className={`${inputCls} w-40`}
+              value={filter}
+              onChange={(e) => {
+                setFilter(e.target.value);
+                muat(e.target.value);
+              }}
+            >
+              <option value="berjalan">Berjalan</option>
+              <option value="lunas">Lunas</option>
+              <option value="semua">Semua</option>
+            </select>
+            <Btn variant="secondary" onClick={() => muat()} disabled={loading}>
+              {loading ? "Memuat…" : "⟳ Refresh"}
+            </Btn>
+          </div>
         </div>
         {loading ? (
           <Skeleton />
         ) : daftar.length === 0 ? (
-          <EmptyState text="Tidak ada piutang pada filter ini." />
+          <EmptyState text="Tidak ada piutang pada filter ini — coba filter lain atau tekan Refresh." />
         ) : (
           <TableShell head={["ID", "Nasabah", "Plafon", "Sisa", "Progres", "Status"]}>
             {daftar.map((d) => (

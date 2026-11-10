@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader, Card, Badge, Btn, EmptyState, Skeleton, TableShell, Field, inputCls } from "../components/ui";
+import ConfirmButton from "../components/ConfirmButton";
 import { rupiah } from "@/lib/format";
 import RoleGuard from "../components/RoleGuard";
 import { useToast } from "../components/Toast";
@@ -85,7 +86,6 @@ function NasabahPageInner() {
   }, [status, q]);
 
   async function lepasUid(kode: string) {
-    if (!confirm(`Lepas kartu RFID dari ${kode}? Saldo & histori tetap aman.`)) return;
     try {
       const r = await fetch("/api/pembantu-lepas-uid", {
         method: "POST",
@@ -136,10 +136,10 @@ function NasabahPageInner() {
             <Field label="Nama">
               <input className={inputCls} value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder="Nama nasabah" />
             </Field>
-            <Field label="Status">
+            <Field label="Jenis rekening" hint="Tabungan = simpanan siswa, Piutang = pinjaman siswa">
               <select className={inputCls} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="TABUNGAN">TABUNGAN (Kr, lawan 3-200)</option>
-                <option value="PIUTANG">PIUTANG (Db, lawan 1-130)</option>
+                <option value="TABUNGAN">TABUNGAN — simpanan siswa</option>
+                <option value="PIUTANG">PIUTANG — pinjaman siswa</option>
               </select>
             </Field>
             <Field label="No Rek (opsional)">
@@ -197,7 +197,7 @@ function NasabahPageInner() {
           {loading ? (
             <Skeleton />
           ) : rows.length === 0 ? (
-            <EmptyState />
+            <EmptyState text="Tidak ketemu — coba kata kunci lain." />
           ) : (
             <TableShell head={["Kode", "Nama", "Status", "UID RFID", "Saldo Akhir"]}>
               {rows.map((r) => (
@@ -211,26 +211,28 @@ function NasabahPageInner() {
                     <Badge value={r.status} />
                   </td>
                   <td className="num px-3 py-2.5 text-xs">
-                    {r.uid_kartu || (
-                      <button
-                        onClick={() => setTapKode(r.kode)}
-                        title="Pilih baris ini untuk dipasangi kartu"
-                        className={`rounded-md px-2 py-0.5 font-bold ${
-                          tapKode === r.kode ? "bg-brand-500 text-white" : "bg-slate-100 hover:bg-slate-200"
-                        }`}
-                      >
-                        {tapKode === r.kode ? "✓ dipilih" : "Pasang"}
-                      </button>
-                    )}
-                    {r.uid_kartu && (
-                      <button
-                        onClick={() => lepasUid(r.kode)}
-                        title="Lepas kartu (hilang/rusak)"
-                        className="ml-2 rounded-md bg-red-100 px-2 py-0.5 font-bold text-red-700 hover:bg-red-200"
-                      >
-                        Lepas
-                      </button>
-                    )}
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {!r.uid_kartu && (
+                        <Btn
+                          size="sm"
+                          variant={tapKode === r.kode ? "primary" : "secondary"}
+                          title="Pilih baris ini untuk dipasangi kartu"
+                          onClick={() => setTapKode(r.kode)}
+                        >
+                          {tapKode === r.kode ? "✓ dipilih" : "Pasang"}
+                        </Btn>
+                      )}
+                      {r.uid_kartu && (
+                        <ConfirmButton
+                          title={`Lepas kartu dari ${r.kode}?`}
+                          body="Saldo & histori tetap aman. Lanjutkan bila kartu hilang/rusak."
+                          confirmLabel="Ya, lepas"
+                          onConfirm={() => lepasUid(r.kode)}
+                        >
+                          Lepas
+                        </ConfirmButton>
+                      )}
+                    </div>
                   </td>
                   <td className="num px-3 py-2.5 font-semibold">{rupiah(r.saldo_akhir)}</td>
                 </tr>

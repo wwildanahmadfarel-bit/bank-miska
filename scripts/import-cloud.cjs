@@ -17,7 +17,12 @@ function loadEnv() {
   if (!fs.existsSync(f)) return;
   for (const line of fs.readFileSync(f, "utf8").split("\n")) {
     const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/);
-    if (m) process.env[m[1]] = m[2];
+    if (!m || m[1].startsWith("#")) continue;
+    let v = m[2].trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1);
+    }
+    process.env[m[1]] = v;
   }
 }
 

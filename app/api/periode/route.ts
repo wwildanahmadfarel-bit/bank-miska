@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
     const tutupTerbaru = tutup.size > 0 ? [...tutup.keys()].sort().reverse()[0] : null;
     return ok({ periode: out.slice(0, 24), tutup_terbaru: tutupTerbaru });
   } catch (e) {
-    return fail("Gagal baca periode: " + (e as Error).message, 500);
+    return gagal("Gagal baca periode: ", e);
   }
 }
+

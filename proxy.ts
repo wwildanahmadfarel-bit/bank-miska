@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { tokenLegacy, verifikasiJwt } from "@/lib/jwt";
 
 const SESSION_COOKIE = "miska_session";
 
@@ -20,9 +21,10 @@ const PROTECTED = [
   "/merchant",
   "/bayar",
   "/riwayat",
+  "/ubah-password",
 ];
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const perluLogin = PROTECTED.some((p) => path === p || path.startsWith(p + "/"));
   if (!perluLogin) return NextResponse.next();
@@ -32,6 +34,21 @@ export function proxy(req: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
+  }
+
+  // JWT diverifikasi di edge request agar cookie rusak/kedaluwarsa tidak
+  // sempat merender halaman. Token legacy 64-hex tetap diloloskan (validitas
+  // sesinya diperiksa API); token JWT yang tidak valid langsung dibersihkan.
+  if (!tokenLegacy(token)) {
+    const payload = await verifikasiJwt(token);
+    if (!payload) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("next", path);
+      const res = NextResponse.redirect(url);
+      res.cookies.delete(SESSION_COOKIE);
+      return res;
+    }
   }
   return NextResponse.next();
 }

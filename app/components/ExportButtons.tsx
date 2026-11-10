@@ -45,12 +45,13 @@ export default function ExportButtons({ href, disabled = false }: { href: string
     }
   }
 
+  const alasan = disabled ? "Tampilkan data dulu agar bisa diunduh." : undefined;
   return (
-    <div className="flex items-end gap-2">
-      <Btn variant="secondary" onClick={() => unduh("csv")} disabled={disabled || busy !== null}>
+    <div className="flex items-end gap-2" title={alasan}>
+      <Btn variant="secondary" onClick={() => unduh("csv")} disabled={disabled || busy !== null} title={alasan}>
         {busy === "csv" ? "CSV..." : "CSV"}
       </Btn>
-      <Btn variant="primary" onClick={() => unduh("xlsx")} disabled={disabled || busy !== null}>
+      <Btn variant="primary" onClick={() => unduh("xlsx")} disabled={disabled || busy !== null} title={alasan}>
         {busy === "xlsx" ? "Excel..." : "Excel"}
       </Btn>
     </div>

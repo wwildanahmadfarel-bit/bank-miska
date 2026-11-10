@@ -1,4 +1,4 @@
-import pool, { ok, fail } from "@/lib/db";
+import pool, { tangkap, gagal, ok, fail } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -15,15 +15,20 @@ export async function POST(req: Request) {
   }
 
   const bulan = String(input.bulan ?? "").trim();
-  if (!/^\d{4}-\d{2}$/.test(bulan)) return fail("bulan harus YYYY-MM");
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(bulan)) return fail("bulan harus YYYY-MM (01-12)");
   // Tutup s/d hari TERAKHIR bulan (bukan tgl 28) agar transaksi 29-31 ikut tertutup.
   const [th, bl] = bulan.split("-").map(Number);
   const lastDay = new Date(th, bl, 0).getDate();
   const tanggal = `${bulan}-${String(lastDay).padStart(2, "0")}`;
   const nextFirst = bl === 12 ? `${th + 1}-01-01` : `${th}-${String(bl + 1).padStart(2, "0")}-01`;
 
-  const conn = await pool.getConnection();
+  let conn: Awaited<ReturnType<typeof pool.getConnection>> | null = null;
   try {
+    try {
+      conn = await pool.getConnection();
+    } catch (e) {
+      return gagal("Database tidak terjangkau", e);
+    }
     await conn.beginTransaction();
 
     const [trows] = await conn.execute<RowDataPacket[]>("SELECT 1 FROM tb_periode_tutup WHERE bulan = ?", [bulan]);
@@ -49,7 +54,8 @@ export async function POST(req: Request) {
          WHERE d.kode_akun = ? AND j.tanggal < ?`,
         [kode, nextFirst]
       );
-      const s = srows[0] as { td: number; tk: number; pos_saldo: string };
+      const s = srows[0] as { td: number; tk: number; pos_saldo: string } | undefined;
+      if (!s) continue;
       const saldo = s.pos_saldo === "Kr" ? Number(s.tk) - Number(s.td) : Number(s.td) - Number(s.tk);
       if (Math.abs(saldo) < 0.005) continue;
 
@@ -84,9 +90,16 @@ export async function POST(req: Request) {
     await conn.commit();
     return ok({ id_jurnal: idJurnal, bulan });
   } catch (e) {
-    await conn.rollback();
-    return fail((e as Error).message, 500);
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* abaikan */
+      }
+    }
+    return tangkap("Gagal tutup periode", e);
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 }
+

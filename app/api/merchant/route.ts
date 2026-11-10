@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { batas, requireRole } from "@/lib/auth";
 
 // GET /api/merchant — teller/admin only
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     );
     return ok({ data: rows });
   } catch (e) {
-    return fail("Gagal baca merchant: " + (e as Error).message, 500);
+    return gagal("Gagal baca merchant: ", e);
   }
 }
 
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
     await pool.execute("INSERT INTO tb_merchant (kode, nama) VALUES (?,?)", [kode, nama]);
     return ok({ kode });
   } catch (e) {
-    return fail("Gagal simpan merchant (mungkin kode ganda): " + (e as Error).message, 500);
+    const msg = String((e as { message?: unknown })?.message ?? e ?? "");
+    if (msg.includes("Duplicate")) return fail("Kode merchant sudah dipakai", 409);
+    return gagal("Gagal simpan merchant (mungkin kode ganda): ", e);
   }
 }
+

@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { batasNominal, requireRole } from "@/lib/auth";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -37,10 +37,14 @@ export async function POST(req: Request) {
       "SELECT kedaluwarsa FROM tb_bayar_merchant WHERE kode_qr = ? LIMIT 1",
       [kodeQr]
     );
-    const expDate = new Date((exp[0] as { kedaluwarsa: string | Date }).kedaluwarsa);
+    if (exp.length === 0) return fail("Gagal baca QR baru, coba lagi", 500);
+    const rawExp = (exp[0] as { kedaluwarsa: string | Date }).kedaluwarsa;
+    const expDate = new Date(rawExp);
+    if (!Number.isFinite(expDate.getTime())) return fail("Waktu kedaluwarsa QR tidak valid", 500);
     const payload = `MISKA:${kodeQr}:${idMerchant}:${nominal}:${Math.floor(expDate.getTime() / 1000)}`;
     return ok({ kode_qr: kodeQr, payload, kedaluwarsa: expDate.toISOString(), nominal });
   } catch (e) {
-    return fail("Gagal buat QR: " + (e as Error).message, 500);
+    return gagal("Gagal buat QR: ", e);
   }
 }
+

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -42,7 +42,8 @@ export async function GET(req: NextRequest) {
     }
 
     const [rows] = await pool.execute<RowDataPacket[]>(
-      `SELECT j.tanggal AS tanggal, j.no_bukti, j.keterangan, j.tipe, d.kode_akun, d.debet, d.kredit
+      `SELECT j.tanggal AS tanggal, DATE_FORMAT(j.dibuat, '%H:%i:%s') AS waktu,
+         j.no_bukti, j.keterangan, j.tipe, d.kode_akun, d.debet, d.kredit
        FROM tb_jurnal_detail d JOIN tb_jurnal j ON j.id = d.id_jurnal
        WHERE ${where.join(" AND ")} ORDER BY j.tanggal ASC, j.id ASC LIMIT 1000`,
       params
@@ -68,6 +69,7 @@ export async function GET(req: NextRequest) {
       rows: out,
     });
   } catch (e) {
-    return fail("Gagal baca riwayat: " + (e as Error).message, 500);
+    return gagal("Gagal baca riwayat: ", e);
   }
 }
+

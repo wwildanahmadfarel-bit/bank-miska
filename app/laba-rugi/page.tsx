@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PageHeader, Card, Btn, inputCls, EmptyState, Skeleton, TableShell, StatCard } from "../components/ui";
+import { PageHeader, Card, Btn, Field, inputCls, EmptyState, Skeleton, TableShell, StatCard } from "../components/ui";
 import ExportButtons from "../components/ExportButtons";
 import RoleGuard from "../components/RoleGuard";
 import { rupiah } from "@/lib/format";
@@ -40,15 +40,28 @@ function LabaRugiPageInner() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title="Laba Rugi" sub="Akun LR saja (4-xxx pendapatan, 6-xxx biaya)." />
+      <PageHeader title="Laba Rugi" sub="Pendapatan vs biaya — laba bersih per bulan." />
       <Card>
-        <div className="mb-4 flex max-w-xl flex-wrap gap-2">
-          <input className={inputCls} placeholder="2019-12" value={bulan} onChange={(e) => setBulan(e.target.value)} />
-          <Btn onClick={muat}>Tampilkan</Btn>
-          <ExportButtons
-            href={`/api/ekspor?laporan=laba-rugi&bulan=${encodeURIComponent(bulan)}`}
-            disabled={loading || rows.length === 0}
-          />
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto_auto]">
+          <Field label="Bulan">
+            <input type="month" className={inputCls} value={bulan} onChange={(e) => setBulan(e.target.value)} />
+          </Field>
+          <div className="flex items-end">
+            <Btn onClick={muat} disabled={loading}>
+              {loading ? "Memuat…" : "Tampilkan"}
+            </Btn>
+          </div>
+          <div className="flex items-end">
+            <Btn variant="secondary" onClick={muat} disabled={loading}>
+              ⟳ Refresh
+            </Btn>
+          </div>
+          <div className="flex items-end">
+            <ExportButtons
+              href={`/api/ekspor?laporan=laba-rugi&bulan=${encodeURIComponent(bulan)}`}
+              disabled={loading || rows.length === 0}
+            />
+          </div>
         </div>
         <p className="mb-4 text-xs text-muted">
           Periode yang sudah ditutup bersifat arsip (read-only) — angka per bulan murni dan tidak berubah oleh
@@ -57,13 +70,15 @@ function LabaRugiPageInner() {
         {loading ? (
           <Skeleton />
         ) : !searched ? (
-          <EmptyState text="Isi bulan lalu Tampilkan." />
+          <EmptyState text="Pilih bulan lalu Tampilkan." />
+        ) : rows.length === 0 ? (
+          <EmptyState text="Tidak ada data bulan ini — coba bulan lain atau tekan Refresh." />
         ) : (
           <>
             <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <StatCard label="Pendapatan" value={rupiah(pend)} accent="bg-emerald-500" />
               <StatCard label="Biaya" value={rupiah(biaya)} accent="bg-red-500" />
-              <StatCard label="Laba" value={rupiah(laba)} accent={laba >= 0 ? "bg-brand-500" : "bg-red-500"} />
+              <StatCard label={laba >= 0 ? "Laba bersih" : "Rugi bersih"} value={rupiah(laba)} accent={laba >= 0 ? "bg-brand-500" : "bg-red-500"} />
             </div>
             <TableShell head={["Kode", "Nama", "Saldo"]}>
               {rows.map((r) => (
@@ -72,7 +87,7 @@ function LabaRugiPageInner() {
                     <strong>{r.kode_akun}</strong>
                   </td>
                   <td className="px-3 py-2.5">{r.nama}</td>
-                  <td className="num px-3 py-2.5">{Number(r.saldo).toLocaleString("id-ID")}</td>
+                  <td className="num px-3 py-2.5">{rupiah(r.saldo)}</td>
                 </tr>
               ))}
             </TableShell>

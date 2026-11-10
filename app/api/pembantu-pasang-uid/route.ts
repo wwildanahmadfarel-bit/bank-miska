@@ -1,4 +1,4 @@
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { normalisasiUid, requireRole, validasiUid } from "@/lib/auth";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -29,6 +29,7 @@ export async function POST(req: Request) {
     await pool.execute("UPDATE tb_pembantu SET uid_kartu = ? WHERE kode = ?", [uid, kode]);
     return ok({ kode, uid_kartu: uid });
   } catch (e) {
-    return fail("Gagal pasang kartu: " + (e as Error).message, 500);
+    return gagal("Gagal pasang kartu: ", e);
   }
 }
+

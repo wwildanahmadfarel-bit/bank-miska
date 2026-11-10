@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 
 // GET /api/bayar-status?kode_qr=A9F3... — polling kasir
 export async function GET(req: NextRequest) {
@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     if (list.length === 0) return fail("QR tidak dikenal", 404);
     return ok({ data: list[0] });
   } catch (e) {
-    return fail("Gagal baca status: " + (e as Error).message, 500);
+    return gagal("Gagal baca status: ", e);
   }
 }
+

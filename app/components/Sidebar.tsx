@@ -25,6 +25,8 @@ const NAV: { href: string; label: string; icon: string; group: string; roles: Ro
   { href: "/neraca-lajur", label: "Neraca Lajur", icon: "⚖️", group: "Laporan", roles: STAF },
   { href: "/laba-rugi", label: "Laba Rugi", icon: "📈", group: "Laporan", roles: STAF },
   { href: "/penutup", label: "Penutup", icon: "🔒", group: "Laporan", roles: ["admin"] },
+  { href: "/ubah-password", label: "Ubah Password", icon: "🔐", group: "Akun", roles: ALL },
+  { href: "/bantuan", label: "Bantuan", icon: "❓", group: "Akun", roles: ALL },
 ];
 
 const GROUPS: { name: string; items: typeof NAV }[] = (() => {

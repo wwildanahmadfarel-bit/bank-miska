@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, ok, fail } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import type { RowDataPacket } from "mysql2/promise";
 
@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
     });
     return ok({ pembantu: pb, rows: out });
   } catch (e) {
-    return fail("Gagal baca BB pembantu: " + (e as Error).message, 500);
+    return gagal("Gagal baca BB pembantu: ", e);
   }
 }
+

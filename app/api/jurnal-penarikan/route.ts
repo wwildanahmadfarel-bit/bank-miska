@@ -1,4 +1,4 @@
-import pool, { ok, fail, periodeTertutup } from "@/lib/db";
+import pool, { tangkap, gagal, ok, fail, periodeTertutup } from "@/lib/db";
 import { batas, batasNominal, requireRole, saldoAkhir } from "@/lib/auth";
 import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
 
@@ -27,8 +27,13 @@ export async function POST(req: Request) {
   const errNom = batasNominal(jumlah);
   if (errNom) return fail(errNom);
 
-  const conn = await pool.getConnection();
+  let conn: Awaited<ReturnType<typeof pool.getConnection>> | null = null;
   try {
+    try {
+      conn = await pool.getConnection();
+    } catch (e) {
+      return gagal("Database tidak terjangkau", e);
+    }
     if (await periodeTertutup(conn, tanggal)) return fail("Periode sudah ditutup");
     // Cegah overdraft tabungan
     const info = await saldoAkhir(conn, kode);
@@ -39,8 +44,8 @@ export async function POST(req: Request) {
     const [kasRows] = await conn.execute<RowDataPacket[]>(
       "SELECT COALESCE(SUM(debet - kredit), 0) AS kas FROM tb_jurnal_detail WHERE kode_akun = '1-110'"
     );
-    if (Number((kasRows[0] as unknown as { kas: number }).kas) < jumlah)
-      return fail("Kas tidak cukup untuk penarikan " + jumlah);
+    const kasSaldo = Number((kasRows[0] as unknown as { kas: number } | undefined)?.kas ?? 0);
+    if (kasSaldo < jumlah) return fail("Kas tidak cukup untuk penarikan " + jumlah);
     await conn.beginTransaction();
 
     const ket = "Penarikan " + kode;
@@ -64,11 +69,34 @@ export async function POST(req: Request) {
     );
 
     await conn.commit();
-    return ok({ id_jurnal: idJurnal });
+    // Data nota: nama + sisa saldo setelah tarik + jam transaksi.
+    const akhir = await saldoAkhir(conn, kode);
+    const [jrows] = await conn.execute<RowDataPacket[]>(
+      "SELECT DATE_FORMAT(dibuat, '%H:%i:%s') AS waktu FROM tb_jurnal WHERE id = ? LIMIT 1",
+      [idJurnal]
+    );
+    const waktu = String((jrows[0] as unknown as { waktu: string | null } | undefined)?.waktu ?? "");
+    return ok({
+      id_jurnal: idJurnal,
+      kode,
+      nama: info.nama,
+      jumlah,
+      sisa: akhir ? Math.round(akhir.saldo * 100) / 100 : 0,
+      tanggal,
+      bukti,
+      waktu,
+    });
   } catch (e) {
-    await conn.rollback();
-    return fail((e as Error).message, 500);
+    if (conn) {
+      try {
+        await conn.rollback();
+      } catch {
+        /* abaikan */
+      }
+    }
+    return tangkap("Gagal simpan penarikan", e);
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 }
+

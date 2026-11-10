@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader, Card, Btn, Field, inputCls, EmptyState, Skeleton, TableShell } from "../components/ui";
 import ExportButtons from "../components/ExportButtons";
 import RoleGuard from "../components/RoleGuard";
+import { rupiah } from "@/lib/format";
 import { useToast } from "../components/Toast";
 
 type BBRow = { tanggal: string; no_bukti: string; keterangan: string; debet: number; kredit: number; saldo: number };
@@ -23,6 +24,12 @@ function BukuBesarPageInner() {
       .then((r) => r.json())
       .then((d) => d.sukses && setCoas(d.data.filter((x: { pos_saldo: string }) => x.pos_saldo !== "-")))
       .catch(() => {});
+  }, []);
+
+  // Muat otomatis Kas 1-110 saat pertama dibuka agar teller langsung melihat angka.
+  useEffect(() => {
+    muat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function muat() {
@@ -63,7 +70,12 @@ function BukuBesarPageInner() {
             <input type="date" className={inputCls} value={sampai} onChange={(e) => setSampai(e.target.value)} />
           </Field>
           <div className="flex flex-wrap items-end gap-2">
-            <Btn onClick={muat}>Tampilkan</Btn>
+            <Btn onClick={muat} disabled={loading}>
+              {loading ? "Memuat…" : "Tampilkan"}
+            </Btn>
+            <Btn variant="secondary" onClick={muat} disabled={loading}>
+              ⟳ Refresh
+            </Btn>
             <ExportButtons
               href={`/api/ekspor?laporan=buku-besar&kode=${encodeURIComponent(kode)}&mulai=${encodeURIComponent(mulai)}&sampai=${encodeURIComponent(sampai)}`}
               disabled={loading || rows.length === 0}
@@ -82,9 +94,9 @@ function BukuBesarPageInner() {
                 <td className="whitespace-nowrap px-3 py-2.5">{r.tanggal}</td>
                 <td className="px-3 py-2.5">{r.no_bukti}</td>
                 <td className="px-3 py-2.5">{r.keterangan}</td>
-                <td className="num px-3 py-2.5">{Number(r.debet).toLocaleString("id-ID")}</td>
-                <td className="num px-3 py-2.5">{Number(r.kredit).toLocaleString("id-ID")}</td>
-                <td className="num px-3 py-2.5 font-semibold">{Number(r.saldo).toLocaleString("id-ID")}</td>
+                <td className="num px-3 py-2.5">{Number(r.debet) > 0 ? rupiah(r.debet) : "-"}</td>
+                <td className="num px-3 py-2.5">{Number(r.kredit) > 0 ? rupiah(r.kredit) : "-"}</td>
+                <td className="num px-3 py-2.5 font-semibold">{rupiah(r.saldo)}</td>
               </tr>
             ))}
           </TableShell>

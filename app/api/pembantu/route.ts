@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import pool, { ok, fail } from "@/lib/db";
+import pool, { gagal, escapeLike, ok, fail } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 
 // GET /api/pembantu?status=TABUNGAN&q=aminah — teller/admin only
@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
     }
     if (q !== "") {
       where.push("(p.nama LIKE ? OR p.kode LIKE ?)");
-      params.push(`%${q}%`, `%${q}%`);
+      const pola = `%${escapeLike(q)}%`;
+      params.push(pola, pola);
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
     );
     return ok({ data: rows });
   } catch (e) {
-    return fail("Gagal baca pembantu: " + (e as Error).message, 500);
+    return gagal("Gagal baca pembantu: ", e);
   }
 }
+
